@@ -209,12 +209,19 @@ private:
 
     void dec_null(uint64_t len)
     {
-        // TODO verify if it should require this
-        if (len != 1)
-            throw FormatError("wrong NULL length");
-        _chklen(1);
-        if (_data[_offset++] != 0)
-            throw FormatError("wrong NULL value");
+        // hmm. the test cert had this so we have to allow it too
+        if (len == 0)
+        {
+        }
+        else
+        {
+            // TODO verify if it should require this
+            if (len != 1)
+                throw FormatError("wrong NULL length");
+            _chklen(1);
+            if (_data[_offset++] != 0)
+                throw FormatError("wrong NULL value");
+        }
         _visitor.do_null();
     }
 
@@ -231,6 +238,7 @@ private:
             {
                 // TODO decide if we should handle exceeded `len` early here
                 _chklen(1);
+                printf("yooo %x %d\n", _data[_offset], _offset);
                 uint8_t b = _data[_offset++];
                 remaining--;
                 component.push_back(b & ~0x80);
