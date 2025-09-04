@@ -33,8 +33,8 @@ SEQUENCE{
 INTEGER(02)
 INTEGER(03d415318e2c571d2905fc3e0527689d0d09)
 SEQUENCE{
-OID (TODO)
-decoding failed: unknown type
+OID(2a.4848.000d0d.01.01.0b.)
+decoding failed: wrong NULL length
 ```
 
 References
