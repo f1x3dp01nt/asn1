@@ -15,6 +15,7 @@ namespace tags
     const uint8_t null = 0x05;
     const uint8_t oid = 0x06;
     const uint8_t utf8_string = 0x0c;
+    const uint8_t printable_string = 0x13;
     const uint8_t utc_time = 0x17;
     // bad taxonomy but fine for now
     const uint8_t constructed = 0x20;
@@ -42,6 +43,7 @@ public:
     virtual void do_integer(vector<uint8_t> integer, bool negative) = 0;
     virtual void do_null() = 0;
     virtual void do_oid(vector<vector<uint8_t>> oid) = 0;
+    virtual void do_printable_string(string& s) = 0;
     virtual void do_utc_time(string& s) = 0;
     virtual void do_constructed_start() = 0;
     virtual void do_sequence_start() = 0;
@@ -61,7 +63,7 @@ public:
 
     virtual void do_integer(vector<uint8_t> integer, bool negative) override
     {
-        _out << "INTEGER(";
+        _out << "INTEGER ";
         if (negative)
         {        
             _out << "-";
@@ -71,7 +73,7 @@ public:
             _out << hex << setfill('0') << setw(2);
             _out << (uint64_t)b;
         }
-        _out << ")" << endl;
+        _out << endl;
     }
 
     virtual void do_null() override
@@ -92,6 +94,11 @@ public:
             _out << ".";
         }
         _out << ")" << endl;
+    }
+
+    virtual void do_printable_string(string& s) override
+    {
+        _out << "PrintableString " << s << endl;
     }
 
     virtual void do_constructed_start() override
@@ -121,7 +128,7 @@ public:
 
     virtual void do_utc_time(string& s) override
     {
-        _out << "UTCTime(" << s << ")" << endl;
+        _out << "UTCTime " << s << endl;
     }
 
 };
@@ -281,6 +288,22 @@ private:
         _visitor.do_oid(oid);
     }
 
+    void dec_printable_string(uint64_t len)
+    {
+        string s;
+        for (size_t i = 0; i < len; i++)
+        {
+            uint8_t chr = _data[_offset++];
+            // TODO proper validation
+            if (chr < 0x1f || chr > 0x7f)
+            {
+                throw FormatError("invalid date");
+            }
+            s.push_back(chr);
+        }
+        _visitor.do_printable_string(s);
+    }
+
     void dec_sequence(uint64_t len)
     {
         _visitor.do_sequence_start();
@@ -300,8 +323,8 @@ private:
         if (len < MIN_UTC_TIME_LEN || len > MAX_UTC_TIME_LEN)
             throw FormatError("invalid UTCTime len");
         _chklen(len);
-        string& s = *new string;
-        for (int i = 0; i < len; i++)
+        string s;
+        for (size_t i = 0; i < len; i++)
         {
             uint8_t chr = _data[_offset++];
             // TODO proper validation
@@ -335,6 +358,9 @@ private:
                 break;
             case tags::oid:
                 dec_oid(len);
+                break;
+            case tags::printable_string:
+                dec_printable_string(len);
                 break;
             case tags::utc_time:
                 dec_utc_time(len);

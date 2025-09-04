@@ -27,16 +27,52 @@ Build and run
 
 ```
 $ g++ asn1.cpp -o asn1 && ./asn1
-SEQUENCE{
-SEQUENCE{
+SEQUENCE(
+SEQUENCE(
 (constructed)
-INTEGER(02)
-INTEGER(03d415318e2c571d2905fc3e0527689d0d09)
-SEQUENCE{
+INTEGER 02
+INTEGER 03d415318e2c571d2905fc3e0527689d0d09
+SEQUENCE(
 OID(2a.0348.01bb8d.01.01.0b.)
 NULL
+)
+SEQUENCE(
+SET{
+SEQUENCE(
+OID(55.04.06.)
+PrintableString US
+)
 }
-SEQUENCE{
+SET{
+SEQUENCE(
+OID(55.04.0a.)
+PrintableString Let's Encrypt
+)
+}
+SET{
+SEQUENCE(
+OID(55.04.03.)
+PrintableString Let's Encrypt Authority X3
+)
+}
+)
+SEQUENCE(
+UTCTime 190929163336Z
+UTCTime 191228163336Z
+)
+SEQUENCE(
+SET{
+SEQUENCE(
+OID(55.04.03.)
+PrintableString letsencrypt.org
+)
+}
+)
+SEQUENCE(
+SEQUENCE(
+OID(2a.0348.01bb8d.01.01.01.)
+NULL
+)
 decoding failed: unknown type
 ```
 
