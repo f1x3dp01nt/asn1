@@ -251,7 +251,7 @@ private:
                 uint8_t pb = i >= 1 ? _data[i - 1] : 0;
                 component[i] = (pb << h) | b;
                 b = pb >> h;
-                h++;
+                h--;
                 if (h < 1)
                 {
                     h = 7;
