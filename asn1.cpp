@@ -46,6 +46,8 @@ public:
     virtual void do_constructed_start() = 0;
     virtual void do_sequence_start() = 0;
     virtual void do_sequence_end() = 0;
+    virtual void do_set_start() = 0;
+    virtual void do_set_end() = 0;
 };
     
 class DecoderPrintVisitor : public DecoderVisitor
@@ -99,10 +101,20 @@ public:
 
     virtual void do_sequence_start() override
     {
-        _out << "SEQUENCE{" << endl;
+        _out << "SEQUENCE(" << endl;
     }
 
     virtual void do_sequence_end() override
+    {
+        _out << ")" << endl;
+    }
+
+    virtual void do_set_start() override
+    {
+        _out << "SET{" << endl;
+    }
+
+    virtual void do_set_end() override
     {
         _out << "}" << endl;
     }
@@ -276,6 +288,13 @@ private:
         _visitor.do_sequence_end();
     }
 
+    void dec_set(uint64_t len)
+    {
+        _visitor.do_set_start();
+        dec_asn1(len);
+        _visitor.do_set_end();
+    }
+
     void dec_utc_time(uint64_t len)
     {
         if (len < MIN_UTC_TIME_LEN || len > MAX_UTC_TIME_LEN)
@@ -327,10 +346,11 @@ private:
                 _visitor.do_constructed_start();
                 break;
             case tags::sequence:
-            {
                 dec_sequence(len);
                 break;
-            }
+            case tags::set:
+                dec_set(len);
+                break;
             default:
                 throw FormatError("unknown type");
             }
