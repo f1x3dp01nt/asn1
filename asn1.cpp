@@ -238,7 +238,6 @@ private:
             {
                 // TODO decide if we should handle exceeded `len` early here
                 _chklen(1);
-                printf("yooo %x %d\n", _data[_offset], _offset);
                 uint8_t b = _data[_offset++];
                 remaining--;
                 component.push_back(b & ~0x80);
@@ -254,17 +253,17 @@ private:
             // [ 0 0 0 a b c d e ] [ f g h i j k l m ] [ n o p q r s t u ]
             uint8_t h = 7;
             uint8_t b = component[i];
-            while (i--)
+            do
             {
-                uint8_t pb = i >= 1 ? _data[i - 1] : 0;
+                uint8_t pb = i >= 1 ? component[i - 1] : 0;
                 component[i] = (pb << h) | b;
-                b = pb >> h;
+                b = pb >> (8 - h);
                 h--;
                 if (h < 1)
                 {
                     h = 7;
                 }
-            }
+            } while (i--);
             oid.push_back(component);
         }
         _visitor.do_oid(oid);
