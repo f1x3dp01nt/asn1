@@ -41,7 +41,7 @@ class DecoderVisitor
 public:
     virtual void do_integer(vector<uint8_t> integer, bool negative) = 0;
     virtual void do_null() = 0;
-    virtual void do_oid() = 0;
+    virtual void do_oid(vector<vector<uint8_t>> oid) = 0;
     virtual void do_utc_time(string& s) = 0;
     virtual void do_constructed_start() = 0;
     virtual void do_sequence_start() = 0;
@@ -77,9 +77,19 @@ public:
         _out << "NULL" << endl;
     }
 
-    virtual void do_oid() override
+    virtual void do_oid(vector<vector<uint8_t>> oid) override
     {
-        _out << "OID (TODO)" << endl;
+        _out << "OID(";
+        for (vector<uint8_t> component : oid)
+        {
+            for (uint8_t b : component)
+            {
+                _out << hex << setfill('0') << setw(2);
+                _out << (uint64_t)b;
+            }
+            _out << ".";
+        }
+        _out << ")" << endl;
     }
 
     virtual void do_constructed_start() override
@@ -208,9 +218,48 @@ private:
         _visitor.do_null();
     }
 
-    void dec_oid(uint64_t len)
+    void dec_oid(uint64_t remaining)
     {
-        _visitor.do_oid();
+        vector<vector<uint8_t>> oid;
+        while (remaining)
+        {
+            vector<uint8_t> component;
+
+            // collect all bytes of the component
+            size_t i;
+            for (i = 0; ; i++)
+            {
+                // TODO decide if we should handle exceeded `len` early here
+                _chklen(1);
+                uint8_t b = _data[_offset++];
+                remaining--;
+                component.push_back(b & ~0x80);
+                if (!(b & 0x80))
+                {
+                    break;
+                }
+            }
+            // condense bits rightward
+            // i.e. if each byte is like [ bits ],
+            // [ 0 a b c d e f g ] [ 0 h i j k l m n ] [ 0 o p q r s t u ]
+            // becomes:
+            // [ 0 0 0 a b c d e ] [ f g h i j k l m ] [ n o p q r s t u ]
+            uint8_t h = 7;
+            uint8_t b = component[i];
+            while (i--)
+            {
+                uint8_t pb = i >= 1 ? _data[i - 1] : 0;
+                component[i] = (pb << h) | b;
+                b = pb >> h;
+                h++;
+                if (h < 1)
+                {
+                    h = 7;
+                }
+            }
+            oid.push_back(component);
+        }
+        _visitor.do_oid(oid);
     }
 
     void dec_sequence(uint64_t len)

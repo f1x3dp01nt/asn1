@@ -9,9 +9,11 @@ ASN.1 library for C++
 **Next:**
 
 - implement encoding ASN.1 payloads
+- BER / DER rules
 - find test vectors
 - add test suite
 - benchmark
+
 
 **Future:**
 
