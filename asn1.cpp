@@ -10,6 +10,7 @@ using namespace std;
 
 namespace tags
 {
+    const uint8_t boolean = 0x1;
     const uint8_t integer = 0x2;
     const uint8_t bit_string = 03;
     const uint8_t octet_string = 0x4;
@@ -50,6 +51,7 @@ public:
 class DecoderVisitor
 {
 public:
+    virtual void do_boolean(bool b) = 0;
     virtual void do_integer(
         unique_ptr<vector<uint8_t>> integer, bool negative) = 0;
     virtual void do_null() = 0;
@@ -71,6 +73,11 @@ private:
 public:
     DecoderPrintVisitor(ostream& out) : _out(out)
     {
+    }
+
+    virtual void do_boolean(bool b) override
+    {
+        cout << "BOOLEAN " << (b ? "TRUE" : "FALSE") << endl;
     }
 
     virtual void do_integer(unique_ptr<vector<uint8_t>> integer, bool negative) override
@@ -210,6 +217,16 @@ private:
             }
             return len;
         }
+    }
+
+    void dec_boolean(uint64_t len)
+    {
+        if (len != 1)
+        {
+            throw FormatError("wrong boolean length");
+        }
+        uint8_t b = _data[_offset++];
+        _visitor.do_boolean(b);
     }
 
     void dec_integer(uint64_t len)
@@ -401,11 +418,17 @@ private:
             uint64_t len = dec_len();
             switch (type)
             {
-            case tags::null:
-                dec_null(len);
+            case tags::boolean:
+                dec_boolean(len);
+                break;
+            case tags::integer:
+                dec_integer(len);
                 break;
             case tags::bit_string:
                 dec_bit_string(len);
+                break;
+            case tags::null:
+                dec_null(len);
                 break;
             case tags::oid:
                 dec_oid(len);
@@ -415,9 +438,6 @@ private:
                 break;
             case tags::utc_time:
                 dec_utc_time(len);
-                break;
-            case tags::integer:
-                dec_integer(len);
                 break;
             case tags::constructed:
                 _visitor.do_constructed_start();
