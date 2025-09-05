@@ -25,6 +25,15 @@ namespace tags
     const uint8_t set = 0x31;
 }
 
+// Tag Class
+namespace tc
+{
+    const uint8_t universal = 0x0;
+    const uint8_t application = 0x40;
+    const uint8_t context_specific = 0x80;
+    const uint8_t private_ = 0xc0;
+}
+
 // YYMMDDhhmm
 const size_t MIN_UTC_TIME_LEN = 10;
 // YYMMDDhhmmss-NNNN
@@ -379,9 +388,15 @@ private:
             uint8_t type = _data[_offset++];
 
             // record tag class
-            uint8_t tag_class = (type & 0xc0) >> 6;
+            uint8_t tag_class = type & 0xc0;
             // clear it from the type
             type &= ~0xc0;
+
+            // XXX temp. simplification
+            if (tag_class == tc::context_specific)
+            {
+                type &= ~0x1F;
+            }
 
             uint64_t len = dec_len();
             switch (type)
