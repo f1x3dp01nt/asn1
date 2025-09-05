@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <stdbool.h>
 #include <memory>
+
 using namespace std;
 
 namespace tags
@@ -66,7 +67,7 @@ public:
     virtual void do_set_start() = 0;
     virtual void do_set_end() = 0;
 };
-    
+
 class DecoderPrintVisitor : public DecoderVisitor
 {
 private:
@@ -83,7 +84,7 @@ public:
     DecoderPrintVisitor(ostream& out) : _out(out)
     {
     }
-    
+
     virtual void do_boolean(bool b) override
     {
         cout << "BOOLEAN " << (b ? "TRUE" : "FALSE") << endl;
@@ -95,7 +96,7 @@ public:
     {
         _out << "INTEGER ";
         if (negative)
-        {        
+        {
             _out << "-";
         }
         _out_hex(move(integer));
@@ -124,14 +125,22 @@ public:
     virtual void do_oid(unique_ptr<vector<vector<uint8_t>>> oid) override
     {
         _out << "OID(";
+        bool first = 1;
         for (vector<uint8_t>& component : *oid)
         {
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                _out << ".";
+            }
             for (uint8_t b : component)
             {
                 _out << hex << setfill('0') << setw(2);
                 _out << (uint64_t)b;
             }
-            _out << ".";
         }
         _out << ")" << endl;
     }
@@ -248,7 +257,8 @@ private:
         integer.reserve(len);
         tmp.reserve(len);
         bool negative = false;
-        for (size_t i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++)
+        {
             uint8_t b = _data[_offset++];
             if (i == 0 && b > 0x7f)
                 negative = true;
@@ -327,6 +337,10 @@ private:
     void dec_oid(uint64_t remaining)
     {
         vector<vector<uint8_t>>& oid = *new vector<vector<uint8_t>>;
+        /* reserve space for the first comonent, which will decompress
+         * into two components */
+        oid.push_back(*new vector<uint8_t>);
+
         while (remaining)
         {
             vector<uint8_t> component;
@@ -365,6 +379,50 @@ private:
             } while (i--);
             oid.push_back(component);
         }
+
+        // decompress the first two components
+        if (oid.size() >= 2)
+        {
+            vector<uint8_t>& c1 = oid[1];
+            if (c1.size() >= 1)
+            {
+                if (c1.size() > 2)
+                {
+                    /* don't know yet if this is legal and it requires a
+                       carry to implement, so wait until decided on output
+                       data structure */
+                    throw FormatError("TODO handle big initial oid comp.");
+                }
+                uint16_t x;
+                if (c1.size() == 1)
+                {
+                    x = c1[0];
+                }
+                else
+                {
+                    x = (c1[0] << 8) | c1[1];
+                }
+                c1.resize(1);
+
+                if (x < 40)
+                {
+                    oid[0].push_back(1);
+                    c1[0] = x;
+                }
+                else if (x < 80)
+                {
+                    oid[0].push_back(1);
+                    c1[0] = x - 40;
+                }
+                else
+                {
+                    oid[0].push_back(2);
+                    c1[0] = x - 80;
+                }
+            }
+        }
+        // TODO decide how to handle small / zero-component OID and component
+
         _visitor.do_oid(unique_ptr<vector<vector<uint8_t>>>(&oid));
     }
 
@@ -516,7 +574,8 @@ int main(int argc, char** argv)
         return 1;
     }
     vector<uint8_t> v;
-    for(;;) {
+    for(;;)
+    {
         char buf[1024];
         streamsize n = fb.sgetn(buf, sizeof(buf));
         for (size_t i = 0 ; i < n; i++)
