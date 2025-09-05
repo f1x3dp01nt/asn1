@@ -56,6 +56,7 @@ public:
         unique_ptr<vector<uint8_t>> integer, bool negative) = 0;
     virtual void do_null() = 0;
     virtual void do_bit_string(unique_ptr<vector<uint8_t>> bs) = 0;
+    virtual void do_octet_string(unique_ptr<vector<uint8_t>> os) = 0;
     virtual void do_oid(unique_ptr<vector<vector<uint8_t>>> oid) = 0;
     virtual void do_printable_string(unique_ptr<string> s) = 0;
     virtual void do_utc_time(unique_ptr<string> s) = 0;
@@ -70,28 +71,34 @@ class DecoderPrintVisitor : public DecoderVisitor
 {
 private:
     ostream& _out;
+    void _out_hex(unique_ptr<vector<uint8_t>> bs)
+    {
+        for (uint8_t b : *bs)
+        {
+            _out << hex << setfill('0') << setw(2);
+            _out << (uint64_t)b;
+        }
+    }
 public:
     DecoderPrintVisitor(ostream& out) : _out(out)
     {
     }
-
+    
     virtual void do_boolean(bool b) override
     {
         cout << "BOOLEAN " << (b ? "TRUE" : "FALSE") << endl;
     }
 
-    virtual void do_integer(unique_ptr<vector<uint8_t>> integer, bool negative) override
+    virtual void do_integer(
+        unique_ptr<vector<uint8_t>> integer,
+        bool negative) override
     {
         _out << "INTEGER ";
         if (negative)
         {        
             _out << "-";
         }
-        for (uint8_t b : *integer)
-        {
-            _out << hex << setfill('0') << setw(2);
-            _out << (uint64_t)b;
-        }
+        _out_hex(move(integer));
         _out << endl;
     }
 
@@ -103,11 +110,14 @@ public:
     virtual void do_bit_string(unique_ptr<vector<uint8_t>> bs) override
     {
         _out << "BIT STRING ";
-        for (uint8_t b : *bs)
-        {
-            _out << hex << setfill('0') << setw(2);
-            _out << (uint64_t)b;
-        }
+        _out_hex(move(bs));
+        _out << endl;
+    }
+
+    virtual void do_octet_string(unique_ptr<vector<uint8_t>> os) override
+    {
+        _out << "OCTET STRING ";
+        _out_hex(move(os));
         _out << endl;
     }
 
@@ -303,6 +313,17 @@ private:
         _visitor.do_bit_string(unique_ptr<vector<uint8_t>>(&v));
     }
 
+    void dec_octet_string(uint64_t len)
+    {
+        vector<uint8_t>& v = *new vector<uint8_t>;
+        for (size_t i = 0; i < len; i++)
+        {
+            _chklen(1);
+            v.push_back(_data[_offset++]);
+        }
+        _visitor.do_octet_string(unique_ptr<vector<uint8_t>>(&v));
+    }
+
     void dec_oid(uint64_t remaining)
     {
         vector<vector<uint8_t>>& oid = *new vector<vector<uint8_t>>;
@@ -426,6 +447,9 @@ private:
                 break;
             case tags::bit_string:
                 dec_bit_string(len);
+                break;
+            case tags::octet_string:
+                dec_octet_string(len);
                 break;
             case tags::null:
                 dec_null(len);
