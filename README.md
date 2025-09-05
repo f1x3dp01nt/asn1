@@ -10,6 +10,7 @@ ASN.1 library for C++
 
 - implement encoding ASN.1 payloads
 - BER / DER rules
+- configurable nesting limit or iterative recursion
 - find test vectors
 - add test suite
 - benchmark

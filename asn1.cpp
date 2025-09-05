@@ -197,9 +197,7 @@ private:
             uint64_t len = 0;
             for (size_t i = 0; i < len_len; i++)
             {
-                if (i != 0)
-                    len <<= 8;
-                len += _data[_offset++];
+                len = (len << 8) + _data[_offset++];
             }
             return len;
         }
@@ -267,7 +265,7 @@ private:
         }
         _chklen(1);
         uint8_t unused = _data[_offset++];
-        for (int i = 0; i < len - 1; i++)
+        for (size_t i = 0; i < len - 1; i++)
         {
             _chklen(1);
             v.push_back(_data[_offset++]);
@@ -462,7 +460,7 @@ int main(int argc, char** argv)
     for(;;) {
         char buf[1024];
         streamsize n = fb.sgetn(buf, sizeof(buf));
-        for (int i = 0 ; i < n; i++)
+        for (size_t i = 0 ; i < n; i++)
             v.push_back(buf[i]);
         if (n != sizeof(buf))
             break;
