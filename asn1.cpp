@@ -251,11 +251,12 @@ private:
     void dec_integer(uint64_t len)
     {
         _chklen(len);
+
         vector<uint8_t>& integer = *new vector<uint8_t>;
         vector<uint8_t>& tmp = *new vector<uint8_t>;
-
         integer.reserve(len);
         tmp.reserve(len);
+
         bool negative = false;
         for (size_t i = 0; i < len; i++)
         {
@@ -304,13 +305,16 @@ private:
 
     void dec_bit_string(uint64_t len)
     {
-        vector<uint8_t>& v = *new vector<uint8_t>;
         if (len == 0)
         {
             throw FormatError("bitstring missing 'unused' prefix");
         }
+        vector<uint8_t>& v = *new vector<uint8_t>;
+        v.reserve(len);
+
         _chklen(1);
         uint8_t unused = _data[_offset++];
+
         for (size_t i = 0; i < len - 1; i++)
         {
             _chklen(1);
@@ -325,10 +329,12 @@ private:
 
     void dec_octet_string(uint64_t len)
     {
+        _chklen(len);
+
         vector<uint8_t>& v = *new vector<uint8_t>;
+        v.reserve(len);
         for (size_t i = 0; i < len; i++)
         {
-            _chklen(1);
             v.push_back(_data[_offset++]);
         }
         _visitor.do_octet_string(unique_ptr<vector<uint8_t>>(&v));
@@ -337,13 +343,14 @@ private:
     void dec_oid(uint64_t remaining)
     {
         vector<vector<uint8_t>>& oid = *new vector<vector<uint8_t>>;
-        /* reserve space for the first comonent, which will decompress
+        /* reserve space for the first component, which will decompress
          * into two components */
-        oid.push_back(*new vector<uint8_t>);
+        oid.emplace_back();
 
         while (remaining)
         {
-            vector<uint8_t> component;
+            oid.emplace_back();
+            vector<uint8_t>& component = oid.back();
 
             // collect all bytes of the component
             size_t i;
@@ -377,7 +384,6 @@ private:
                     h = 7;
                 }
             } while (i--);
-            oid.push_back(component);
         }
 
         // decompress the first two components
@@ -428,7 +434,10 @@ private:
 
     void dec_printable_string(uint64_t len)
     {
-        string* s = new string;
+        _chklen(len);
+
+        string& s = *new string;
+        s.reserve(len);
         for (size_t i = 0; i < len; i++)
         {
             uint8_t chr = _data[_offset++];
@@ -437,9 +446,9 @@ private:
             {
                 throw FormatError("invalid date");
             }
-            s->push_back(chr);
+            s.push_back(chr);
         }
-        _visitor.do_printable_string(unique_ptr<string>(s));
+        _visitor.do_printable_string(unique_ptr<string>(&s));
     }
 
     void dec_sequence(uint64_t len)
@@ -461,7 +470,9 @@ private:
         if (len < MIN_UTC_TIME_LEN || len > MAX_UTC_TIME_LEN)
             throw FormatError("invalid UTCTime len");
         _chklen(len);
-        string* s = new string;
+
+        string& s = *new string;
+        s.reserve(len);
         for (size_t i = 0; i < len; i++)
         {
             uint8_t chr = _data[_offset++];
@@ -470,9 +481,9 @@ private:
             {
                 throw FormatError("invalid date");
             }
-            s->push_back(chr);
+            s.push_back(chr);
         }
-        _visitor.do_utc_time(unique_ptr<string>(s));
+        _visitor.do_utc_time(unique_ptr<string>(&s));
     }
 
     void dec_asn1(uint64_t len)
