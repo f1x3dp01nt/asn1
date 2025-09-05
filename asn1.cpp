@@ -5,6 +5,7 @@
 #include <fstream>
 #include <cstdint>
 #include <stdbool.h>
+#include <memory>
 using namespace std;
 
 namespace tags
@@ -40,11 +41,12 @@ public:
 class DecoderVisitor
 {
 public:
-    virtual void do_integer(vector<uint8_t> integer, bool negative) = 0;
+    virtual void do_integer(
+        unique_ptr<vector<uint8_t>> integer, bool negative) = 0;
     virtual void do_null() = 0;
-    virtual void do_oid(vector<vector<uint8_t>> oid) = 0;
-    virtual void do_printable_string(string& s) = 0;
-    virtual void do_utc_time(string& s) = 0;
+    virtual void do_oid(unique_ptr<vector<vector<uint8_t>>> oid) = 0;
+    virtual void do_printable_string(unique_ptr<string> s) = 0;
+    virtual void do_utc_time(unique_ptr<string> s) = 0;
     virtual void do_constructed_start() = 0;
     virtual void do_sequence_start() = 0;
     virtual void do_sequence_end() = 0;
@@ -61,14 +63,14 @@ public:
     {
     }
 
-    virtual void do_integer(vector<uint8_t> integer, bool negative) override
+    virtual void do_integer(unique_ptr<vector<uint8_t>> integer, bool negative) override
     {
         _out << "INTEGER ";
         if (negative)
         {        
             _out << "-";
         }
-        for (uint8_t b : integer)
+        for (uint8_t b : *integer)
         {
             _out << hex << setfill('0') << setw(2);
             _out << (uint64_t)b;
@@ -81,10 +83,10 @@ public:
         _out << "NULL" << endl;
     }
 
-    virtual void do_oid(vector<vector<uint8_t>> oid) override
+    virtual void do_oid(unique_ptr<vector<vector<uint8_t>>> oid) override
     {
         _out << "OID(";
-        for (vector<uint8_t> component : oid)
+        for (vector<uint8_t>& component : *oid)
         {
             for (uint8_t b : component)
             {
@@ -96,9 +98,9 @@ public:
         _out << ")" << endl;
     }
 
-    virtual void do_printable_string(string& s) override
+    virtual void do_printable_string(unique_ptr<string> s) override
     {
-        _out << "PrintableString " << s << endl;
+        _out << "PrintableString " << *s << endl;
     }
 
     virtual void do_constructed_start() override
@@ -126,9 +128,9 @@ public:
         _out << "}" << endl;
     }
 
-    virtual void do_utc_time(string& s) override
+    virtual void do_utc_time(unique_ptr<string> s) override
     {
-        _out << "UTCTime " << s << endl;
+        _out << "UTCTime " << *s << endl;
     }
 
 };
@@ -136,7 +138,7 @@ public:
 /** Decodes an ASN.1 payload from the supplied byte vector,
     feeding the results into the supplied DecoderVisitor.
 
-    Does not support objects of length 2**8 or higher.
+    Does not support objects of length 2**64 or higher.
 
     @throws FormatError upon encountering non-conforming input
 */
@@ -194,36 +196,36 @@ private:
     void dec_integer(uint64_t len)
     {
         _chklen(len);
-        vector<uint8_t>& integer = *new vector<uint8_t>;
-        vector<uint8_t> tmp;
+        vector<uint8_t>* integer = new vector<uint8_t>;
+        vector<uint8_t>* tmp = new vector<uint8_t>;
 
-        integer.reserve(len);
-        tmp.reserve(len);
+        integer->reserve(len);
+        tmp->reserve(len);
         bool negative = false;
         for (size_t i = 0; i < len; i++) {
             uint8_t b = _data[_offset++];
             if (i == 0 && b > 0x7f)
                 negative = true;
-            tmp.push_back(b);
+            tmp->push_back(b);
         }
         if (negative)
         {
             uint8_t carry = 0;
-            for (auto i = tmp.rbegin(); i != tmp.rend(); i++)
+            for (auto i = tmp->rbegin(); i != tmp->rend(); i++)
             {
                 uint8_t x = ~(*i);
-                integer.push_back(x + carry);
+                integer->push_back(x + carry);
                 carry = (carry && x == 0xff);
             }
             if (carry)
-                integer.push_back(1);
-            reverse(integer.begin(), integer.end());
+                integer->push_back(1);
+            reverse(integer->begin(), integer->end());
         }
         else
         {
             integer = tmp;
         }
-        _visitor.do_integer(integer, negative);
+        _visitor.do_integer(unique_ptr<vector<uint8_t>>(integer), negative);
     }
 
     void dec_null(uint64_t len)
@@ -246,7 +248,7 @@ private:
 
     void dec_oid(uint64_t remaining)
     {
-        vector<vector<uint8_t>> oid;
+        vector<vector<uint8_t>>& oid = *new vector<vector<uint8_t>>;
         while (remaining)
         {
             vector<uint8_t> component;
@@ -285,12 +287,12 @@ private:
             } while (i--);
             oid.push_back(component);
         }
-        _visitor.do_oid(oid);
+        _visitor.do_oid(unique_ptr<vector<vector<uint8_t>>>(&oid));
     }
 
     void dec_printable_string(uint64_t len)
     {
-        string s;
+        string* s = new string;
         for (size_t i = 0; i < len; i++)
         {
             uint8_t chr = _data[_offset++];
@@ -299,9 +301,9 @@ private:
             {
                 throw FormatError("invalid date");
             }
-            s.push_back(chr);
+            s->push_back(chr);
         }
-        _visitor.do_printable_string(s);
+        _visitor.do_printable_string(unique_ptr<string>(s));
     }
 
     void dec_sequence(uint64_t len)
@@ -323,7 +325,7 @@ private:
         if (len < MIN_UTC_TIME_LEN || len > MAX_UTC_TIME_LEN)
             throw FormatError("invalid UTCTime len");
         _chklen(len);
-        string s;
+        string* s = new string;
         for (size_t i = 0; i < len; i++)
         {
             uint8_t chr = _data[_offset++];
@@ -332,9 +334,9 @@ private:
             {
                 throw FormatError("invalid date");
             }
-            s.push_back(chr);
+            s->push_back(chr);
         }
-        _visitor.do_utc_time(s);
+        _visitor.do_utc_time(unique_ptr<string>(s));
     }
 
     void dec_asn1(uint64_t len)
