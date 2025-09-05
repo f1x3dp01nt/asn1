@@ -206,37 +206,37 @@ private:
     void dec_integer(uint64_t len)
     {
         _chklen(len);
-        vector<uint8_t>* integer = new vector<uint8_t>;
-        vector<uint8_t>* tmp = new vector<uint8_t>;
+        vector<uint8_t>& integer = *new vector<uint8_t>;
+        vector<uint8_t>& tmp = *new vector<uint8_t>;
 
-        integer->reserve(len);
-        tmp->reserve(len);
+        integer.reserve(len);
+        tmp.reserve(len);
         bool negative = false;
         for (size_t i = 0; i < len; i++) {
             uint8_t b = _data[_offset++];
             if (i == 0 && b > 0x7f)
                 negative = true;
-            tmp->push_back(b);
+            tmp.push_back(b);
         }
         if (negative)
         {
             uint8_t carry = 0;
-            for (auto i = tmp->rbegin(); i != tmp->rend(); i++)
+            for (auto i = tmp.rbegin(); i != tmp.rend(); i++)
             {
                 uint8_t x = ~(*i);
-                integer->push_back(x + carry);
+                integer.push_back(x + carry);
                 carry = (carry && x == 0xff);
             }
             if (carry)
-                integer->push_back(1);
-            reverse(integer->begin(), integer->end());
+                integer.push_back(1);
+            reverse(integer.begin(), integer.end());
         }
         else
         {
             integer = tmp;
         }
-        _visitor.do_integer(unique_ptr<vector<uint8_t>>(integer), negative);
-    }
+        _visitor.do_integer(unique_ptr<vector<uint8_t>>(&integer), negative);
+     }
 
     void dec_null(uint64_t len)
     {
