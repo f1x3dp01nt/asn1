@@ -401,11 +401,23 @@ public:
     }
 };
 
-int main()
+int usage()
 {
-    string src = "test_payload.crt";
+    cout << "usage: <file with ASN.1 payload>" << endl;
+    return 2;
+}
+
+int main(int argc, char** argv)
+{
+    if (argc != 2)
+    {
+        return usage();
+    }
+
+    char* input_file = argv[1];
+
     filebuf fb;
-    if (fb.open(src, ios_base::binary | ios_base::in) == NULL)
+    if (fb.open(input_file, ios_base::binary | ios_base::in) == NULL)
     {
         cerr << "failed to open file" << endl;
         return 1;

@@ -26,7 +26,7 @@ Build and run
 (decodes test_payload.crt: a cert for letsencrypt.org)
 
 ```
-$ g++ asn1.cpp -o asn1 && ./asn1
+$ g++ asn1.cpp -o asn1 && ./asn1 test_payload.crt
 SEQUENCE(
 SEQUENCE(
 (constructed)
