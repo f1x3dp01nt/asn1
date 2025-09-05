@@ -20,10 +20,19 @@ ASN.1 library for C++
 - implement schema parser
 - implement programming language type mappings
 
+Usage
+=====
+
+```
+asn1 <file>
+```
+
+Decodes an ASN.1 payload, and prints it out in human-readable form. `file` can be an X.509 certificate, for example.
+
 Build and run
 =============
 
-(decodes test_payload.crt: a cert for letsencrypt.org)
+(The provided test_payload.crt is a cert for letsencrypt.org))
 
 ```
 $ g++ asn1.cpp -o asn1 && ./asn1 test_payload.crt
@@ -72,6 +81,8 @@ SEQUENCE(
 SEQUENCE(
 OID(2a.0348.01bb8d.01.01.01.)
 NULL
+)
+BIT STRING 3082010a0282010100d0027597588872d78d4873aa668710d67f998a74e7e6db270d1186690230ddf68aa3cfd3fdbf281462eb417cefe8ad48d70aa50fc7426126e4da1a1faac7ccfba286ff37e2883d4cfb0778cd103a468639c474d35874906465220ca75f31bb9123bb85301449b2dfcc20f81e9f2cc0b2470b3efceec9ffd3d0ef3e425d78786542fae07e7197aac1cba925e8f54b595eb8b0612d07442b7974a08b4ce400992e5ecca1b6fbb2d572e4101ac1b5b2dddfdadd3ddb327c0438ff840774661f2f291c240d9bcfcd9ce8efa838a46b553d18667039d52e29f83e6b32b167af11dce926134eec55c2b02036696a3878f0182ab47d063c8d94f010d9090a948fdc271f0203010001
 )
 decoding failed: unknown type
 ```

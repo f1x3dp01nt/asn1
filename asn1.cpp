@@ -11,11 +11,11 @@ using namespace std;
 namespace tags
 {
     const uint8_t integer = 0x2;
-    const uint8_t bit_string = 0x03;
-    const uint8_t octet_string = 0x04;
-    const uint8_t null = 0x05;
-    const uint8_t oid = 0x06;
-    const uint8_t utf8_string = 0x0c;
+    const uint8_t bit_string = 03;
+    const uint8_t octet_string = 0x4;
+    const uint8_t null = 0x5;
+    const uint8_t oid = 0x6;
+    const uint8_t utf8_string = 0xc;
     const uint8_t printable_string = 0x13;
     const uint8_t utc_time = 0x17;
     // bad taxonomy but fine for now
@@ -44,6 +44,7 @@ public:
     virtual void do_integer(
         unique_ptr<vector<uint8_t>> integer, bool negative) = 0;
     virtual void do_null() = 0;
+    virtual void do_bit_string(unique_ptr<vector<uint8_t>> bs) = 0;
     virtual void do_oid(unique_ptr<vector<vector<uint8_t>>> oid) = 0;
     virtual void do_printable_string(unique_ptr<string> s) = 0;
     virtual void do_utc_time(unique_ptr<string> s) = 0;
@@ -59,7 +60,7 @@ class DecoderPrintVisitor : public DecoderVisitor
 private:
     ostream& _out;
 public:
-    DecoderPrintVisitor() : _out(cout)
+    DecoderPrintVisitor(ostream& out) : _out(out)
     {
     }
 
@@ -81,6 +82,17 @@ public:
     virtual void do_null() override
     {
         _out << "NULL" << endl;
+    }
+
+    virtual void do_bit_string(unique_ptr<vector<uint8_t>> bs) override
+    {
+        _out << "BIT STRING ";
+        for (uint8_t b : *bs)
+        {
+            _out << hex << setfill('0') << setw(2);
+            _out << (uint64_t)b;
+        }
+        _out << endl;
     }
 
     virtual void do_oid(unique_ptr<vector<vector<uint8_t>>> oid) override
@@ -246,6 +258,27 @@ private:
         _visitor.do_null();
     }
 
+    void dec_bit_string(uint64_t len)
+    {
+        vector<uint8_t>& v = *new vector<uint8_t>;
+        if (len == 0)
+        {
+            throw FormatError("bitstring missing 'unused' prefix");
+        }
+        _chklen(1);
+        uint8_t unused = _data[_offset++];
+        for (int i = 0; i < len - 1; i++)
+        {
+            _chklen(1);
+            v.push_back(_data[_offset++]);
+        }
+        if (v.size())
+        {
+            v[v.size() - 1] &= ~((1 << unused) - 1);
+        }
+        _visitor.do_bit_string(unique_ptr<vector<uint8_t>>(&v));
+    }
+
     void dec_oid(uint64_t remaining)
     {
         vector<vector<uint8_t>>& oid = *new vector<vector<uint8_t>>;
@@ -358,6 +391,9 @@ private:
             case tags::null:
                 dec_null(len);
                 break;
+            case tags::bit_string:
+                dec_bit_string(len);
+                break;
             case tags::oid:
                 dec_oid(len);
                 break;
@@ -433,7 +469,7 @@ int main(int argc, char** argv)
     }
     try
     {
-        Decoder dec(v, *new DecoderPrintVisitor);
+        Decoder dec(v, *new DecoderPrintVisitor(cout));
         dec.dec();
     }
     catch (FormatError& fe)
